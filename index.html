@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Estaciona Maringá</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+    header { background-color: #4CAF50; color: white; padding: 10px; text-align: center; position: relative; }
+    .menu-icon { position: absolute; left: 10px; top: 10px; font-size: 24px; cursor: pointer; }
+    .menu-popup {
+      display: none; position: absolute; left: 10px; top: 40px; background: white; border: 1px solid #ccc;
+      border-radius: 5px; padding: 5px;
+    }
+    .menu-popup button {
+      display: block; width: 150px; margin: 5px; padding: 8px; cursor: pointer;
+      background-color: #f0f0f0; border: none; text-align: left;
+    }
+    #map, #map-reserva { height: 400px; margin: 15px; }
+    .hidden { display: none; }
+    .sections { display: flex; justify-content: space-around; margin: 15px; flex-wrap: wrap; }
+    .box {
+      border: 1px solid #ccc; padding: 10px; width: 45%; border-radius: 8px; background-color: #f9f9f9; min-width: 250px;
+    }
+    input, button { margin: 5px; padding: 8px; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="menu-icon" onclick="toggleMenu()">☰</div>
+    <h1>Estaciona Maringá</h1>
+    <div class="menu-popup" id="menu">
+      <button onclick="mostrarPagina('inicio')">🏠 Página Inicial</button>
+      <button onclick="mostrarPagina('reserva')">📅 Reserva</button>
+    </div>
+  </header>
+
+  <!-- Página Inicial -->
+  <div id="inicio">
+    <div id="map"></div>
+
+    <div class="sections">
+      <div class="box">
+        <h3>Reserva Atual</h3>
+        <p id="reserva-atual">Nenhuma reserva feita.</p>
+      </div>
+      <div class="box">
+        <h3>Histórico</h3>
+        <ul id="historico"></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Página Reserva -->
+  <div id="reserva" class="hidden">
+    <h3 style="margin-left:15px;">Faça sua Reserva:</h3>
+    <input type="date" id="data">
+    <input type="time" id="entrada" placeholder="Hora de Entrada">
+    <input type="time" id="saida" placeholder="Hora de Saída">
+    <input type="text" id="search-reserva" placeholder="Digite a rua...">
+    <button onclick="buscarVagasReserva()">Buscar Vagas</button>
+    <div id="map-reserva"></div>
+    <button onclick="confirmarReserva()">Confirmar Reserva</button>
+    <p id="status-reserva" style="color:green; margin-left:15px;"></p>
+  </div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    const vagas = [
+      { id: 1, rua: 'Avenida Brasil', status: 'livre', lat: -23.421, lon: -51.933 },
+      { id: 2, rua: 'Rua Santos Dumont', status: 'ocupada', lat: -23.419, lon: -51.930 },
+      { id: 3, rua: 'Avenida Mandacaru', status: 'livre', lat: -23.423, lon: -51.931 },
+      { id: 4, rua: 'Avenida Herval', status: 'ocupada', lat: -23.422, lon: -51.934 },
+      { id: 5, rua: 'Avenida São Paulo', status: 'livre', lat: -23.424, lon: -51.932 }
+    ];
+
+    let markers = [];
+    let selectedVagaId = null;
+
+    const map = L.map('map').setView([-23.4205, -51.9333], 14);
+    const mapReserva = L.map('map-reserva').setView([-23.4205, -51.9333], 14);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: 'Map data © OpenStreetMap contributors'
+    }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapReserva);
+
+    function toggleMenu() {
+      const menu = document.getElementById('menu');
+      menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+    }
+
+    function mostrarPagina(pagina) {
+      document.getElementById('inicio').classList.add('hidden');
+      document.getElementById('reserva').classList.add('hidden');
+      document.getElementById('menu').style.display = 'none';
+
+      if (pagina === 'inicio') {
+        carregarMapaGeral();
+        document.getElementById('inicio').classList.remove('hidden');
+      }
+
+      if (pagina === 'reserva') {
+        document.getElementById('reserva').classList.remove('hidden');
+        setTimeout(carregarMapaReserva, 100);
+      }
+    }
+
+    function carregarMapaGeral() {
+      markers.forEach(m => map.removeLayer(m));
+      markers = [];
+
+      vagas.forEach(vaga => {
+        const color = vaga.status === 'livre' ? 'green' : 'red';
+        const marker = L.circleMarker([vaga.lat, vaga.lon], {
+          color: color, radius: 10, fillOpacity: 0.8
+        }).addTo(map);
+        marker.bindPopup(`Vaga ${vaga.id}<br>Rua: ${vaga.rua}<br>Status: ${vaga.status.toUpperCase()}`);
+        markers.push(marker);
+      });
+    }
+
+    function buscarVagasReserva() {
+      const rua = document.getElementById('search-reserva').value.toLowerCase();
+      mapReserva.eachLayer(layer => {
+        if (layer instanceof L.CircleMarker) mapReserva.removeLayer(layer);
+      });
+      selectedVagaId = null;
+
+      vagas.filter(v => v.status === 'livre' && v.rua.toLowerCase().includes(rua)).forEach(vaga => {
+        const marker = L.circleMarker([vaga.lat, vaga.lon], {
+          color: 'green', radius: 10, fillOpacity: 0.8
+        }).addTo(mapReserva);
+        marker.on('click', () => {
+          selectedVagaId = vaga.id;
+          alert(`Vaga ${vaga.id} selecionada!`);
+        });
+        marker.bindPopup(`Vaga ${vaga.id}<br>${vaga.rua}`);
+      });
+    }
+
+    function carregarMapaReserva() {
+      mapReserva.invalidateSize();
+      mapReserva.setView([-23.4205, -51.9333], 14);
+      buscarVagasReserva();
+    }
+
+    function confirmarReserva() {
+      if (!selectedVagaId) {
+        alert('Selecione uma vaga no mapa da reserva!');
+        return;
+      }
+      const data = document.getElementById('data').value;
+      const entrada = document.getElementById('entrada').value;
+      const saida = document.getElementById('saida').value;
+
+      if (!data || !entrada || !saida) {
+        alert('Preencha todos os campos!');
+        return;
+      }
+
+      const vaga = vagas.find(v => v.id === selectedVagaId);
+      vaga.status = 'ocupada';
+      document.getElementById('reserva-atual').innerText = `Vaga ${vaga.id} na ${vaga.rua}, Dia: ${data}, Entrada: ${entrada}, Saída: ${saida}`;
+      const li = document.createElement('li');
+      li.innerText = `Vaga ${vaga.id} reservada na ${vaga.rua} em ${data} das ${entrada} às ${saida}`;
+      document.getElementById('historico').appendChild(li);
+      document.getElementById('status-reserva').innerText = `✅ Vaga ${vaga.id} reservada com sucesso!`;
+
+      selectedVagaId = null;
+      carregarMapaGeral();
+    }
+
+    carregarMapaGeral();
+  </script>
+
+</body>
+</html>
