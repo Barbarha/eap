@@ -58,6 +58,7 @@
     <input type="date" id="data">
     <input type="time" id="entrada" placeholder="Hora de Entrada">
     <input type="time" id="saida" placeholder="Hora de Saída">
+    <input type="text" id="placa" placeholder="Digite a placa do carro">
     <input type="text" id="search-reserva" placeholder="Digite a rua...">
     <button onclick="buscarVagasReserva()">Buscar Vagas</button>
     <div id="map-reserva"></div>
@@ -151,22 +152,30 @@
         alert('Selecione uma vaga no mapa da reserva!');
         return;
       }
+
       const data = document.getElementById('data').value;
       const entrada = document.getElementById('entrada').value;
       const saida = document.getElementById('saida').value;
+      const placa = document.getElementById('placa').value;
 
-      if (!data || !entrada || !saida) {
-        alert('Preencha todos os campos!');
+      if (!data || !entrada || !saida || !placa) {
+        alert('Preencha todos os campos, inclusive a placa!');
         return;
       }
 
       const vaga = vagas.find(v => v.id === selectedVagaId);
       vaga.status = 'ocupada';
-      document.getElementById('reserva-atual').innerText = `Vaga ${vaga.id} na ${vaga.rua}, Dia: ${data}, Entrada: ${entrada}, Saída: ${saida}`;
+
+      document.getElementById('reserva-atual').innerText = 
+        `Vaga ${vaga.id} na ${vaga.rua}, Dia: ${data}, Entrada: ${entrada}, Saída: ${saida}, Placa: ${placa}`;
+
       const li = document.createElement('li');
-      li.innerText = `Vaga ${vaga.id} reservada na ${vaga.rua} em ${data} das ${entrada} às ${saida}`;
+      li.innerText = 
+        `Vaga ${vaga.id} reservada na ${vaga.rua} em ${data}, das ${entrada} às ${saida} - Placa: ${placa}`;
       document.getElementById('historico').appendChild(li);
-      document.getElementById('status-reserva').innerText = `✅ Vaga ${vaga.id} reservada com sucesso!`;
+
+      document.getElementById('status-reserva').innerText = 
+        `✅ Vaga ${vaga.id} reservada com sucesso para o carro placa ${placa}!`;
 
       selectedVagaId = null;
       carregarMapaGeral();
